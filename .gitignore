@@ -1,0 +1,9 @@
+# Go
+backend/bin/
+backend/vendor/
+
+# Node
+frontend/dist/
+
+# Env
+.env
