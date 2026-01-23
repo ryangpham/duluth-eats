@@ -27,8 +27,8 @@ type placeResult struct {
 	PlaceID      string  `json:"place_id"`
 	Name         string  `json:"name"`
 	Rating       float64 `json:"rating"`
-	TotalRatings int     `jason:"user_ratings_total"`
-	Price        int     `jason:"price_level"`
+	TotalRatings int     `json:"user_ratings_total"`
+	Price        int     `json:"price_level"`
 	Geometry     struct {
 		Location struct {
 			Lat float64 `json:"lat"`
