@@ -1,10 +1,10 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/ryangpham/duluth-eats/internal/models"
@@ -17,27 +17,39 @@ const (
 	searchRadius = 20000 // 20 km
 )
 
-// internal structs for Google Places API responses
-type placesAPIResponse struct {
-	Results []placeResult `json:"results"`
-	Status  string        `json:"status"`
+// request struct
+type textSearchRequest struct {
+	TextQuery      string `json:"textQuery"`
+	MaxResultCount int    `json:"maxResultCount"`
+	LocationBias   struct {
+		Circle struct {
+			Center struct {
+				Latitude  float64 `json:"latitude"`
+				Longitude float64 `json:"longitude"`
+			} `json:"center"`
+			Radius float64 `json:"radius"`
+		} `json:"circle"`
+	} `json:"locationBias"`
 }
 
-type placeResult struct {
-	PlaceID      string  `json:"place_id"`
-	Name         string  `json:"name"`
-	Rating       float64 `json:"rating"`
-	TotalRatings int     `json:"user_ratings_total"`
-	Price        int     `json:"price_level"`
-	Geometry     struct {
-		Location struct {
-			Lat float64 `json:"lat"`
-			Lng float64 `json:"lng"`
+// response struct
+type placesAPIResponse struct {
+	Places []struct {
+		ID          string `json:"id"`
+		DisplayName struct {
+			Text string `json:"text"`
+		} `json:"displayName"`
+		Rating       float64 `json:"rating"`
+		TotalRatings int     `json:"userRatingCount"`
+		PriceLevel   string  `json:"priceLevel"`
+		Location     struct {
+			Lat float64 `json:"latitude"`
+			Lng float64 `json:"longitude"`
 		} `json:"location"`
-	} `json:"geometry"`
-	OpeningHours struct {
-		OpenNow bool `json:"open_now"`
-	} `json:"opening_hours"`
+		CurrentOpeningHours struct {
+			OpenNow bool `json:"openNow"`
+		} `json:"currentOpeningHours"`
+	} `json:"places"`
 }
 
 // fetch nearby restaurants by cuisine keyword
@@ -47,18 +59,39 @@ func FetchRestaurantsByCuisine(cuisine string, city string) ([]models.Restaurant
 		return nil, fmt.Errorf("Google Places API key not set in environment variables")
 	}
 
-	baseURL := "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+	baseURL := "https://places.googleapis.com/v1/places:searchText"
 
-	params := url.Values{}
-	params.Set("location", fmt.Sprintf("%f,%f", lat, lng))
-	params.Set("radius", fmt.Sprintf("%d", searchRadius))
-	params.Set("type", "restaurant")
-	params.Set("keyword", cuisine)
-	params.Set("key", apiKey)
+	var reqBody textSearchRequest
+	reqBody.TextQuery = fmt.Sprintf("%s restaurant in %s GA", cuisine, city)
+	reqBody.MaxResultCount = 20
+	reqBody.LocationBias.Circle.Center.Latitude = lat
+	reqBody.LocationBias.Circle.Center.Longitude = lng
+	reqBody.LocationBias.Circle.Radius = float64(searchRadius)
 
-	reqURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, err := http.Get(reqURL)
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Goog-Api-Key", apiKey)
+	req.Header.Set(
+		"X-Goog-FieldMask",
+		"places.id,"+
+			"places.displayName.text,"+
+			"places.rating,"+
+			"places.userRatingCount,"+
+			"places.location.latitude,"+
+			"places.location.longitude,"+
+			"places.currentOpeningHours.openNow",
+	)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -69,18 +102,19 @@ func FetchRestaurantsByCuisine(cuisine string, city string) ([]models.Restaurant
 		return nil, err
 	}
 
+	fmt.Println("DEBUG: Places returned:", len(apiResp.Places))
+
 	var restaurants []models.Restaurant
-	for _, result := range apiResp.Results {
+	for _, result := range apiResp.Places {
 		restaurants = append(restaurants, models.Restaurant{
-			ID:          result.PlaceID,
-			Name:        result.Name,
-			Cuisine:     cuisine,
-			Rating:      result.Rating,
-			ReviewCount: result.TotalRatings,
-			PriceLevel:  result.Price,
-			Latitude:    result.Geometry.Location.Lat,
-			Longitude:   result.Geometry.Location.Lng,
-			IsOpen:      result.OpeningHours.OpenNow,
+			ID:           result.ID,
+			Name:         result.DisplayName.Text,
+			Cuisine:      cuisine,
+			Rating:       result.Rating,
+			TotalRatings: result.TotalRatings,
+			Latitude:     result.Location.Lat,
+			Longitude:    result.Location.Lng,
+			IsOpen:       result.CurrentOpeningHours.OpenNow,
 		})
 	}
 
