@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
+	"github.com/ryangpham/duluth-eats/internal/db"
 	"github.com/ryangpham/duluth-eats/internal/handlers"
 )
 
@@ -13,6 +14,10 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	if err := db.InitDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
 	fmt.Println("Starting DuluthEats API...")
