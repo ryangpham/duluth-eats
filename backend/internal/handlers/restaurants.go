@@ -11,6 +11,7 @@ import (
 func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	cuisine := r.URL.Query().Get("cuisine")
 	city := r.URL.Query().Get("city")
+	state := r.URL.Query().Get("state")
 
 	fmt.Printf("DEBUG: Received request with cuisine=%q, city=%q\n", cuisine, city)
 
@@ -19,8 +20,8 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurants, err := services.FetchRestaurantsByCuisine(cuisine, city)
-	fmt.Printf("DEBUG: FetchRestaurantsByCuisine returned %d restaurants, err=%v\n", len(restaurants), err)
+	restaurants, err := services.GetRestaurants(r.Context(), cuisine, city, state)
+	fmt.Printf("DEBUG: GetRestaurants returned %d restaurants, err=%v\n", len(restaurants), err)
 	if err != nil {
 		http.Error(w, "failed to fetch restaurants: "+err.Error(), http.StatusInternalServerError)
 		return

@@ -53,7 +53,7 @@ type placesAPIResponse struct {
 }
 
 // fetch nearby restaurants by cuisine keyword
-func FetchRestaurantsByCuisine(cuisine string, city string) ([]models.Restaurant, error) {
+func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.Restaurant, error) {
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("Google Places API key not set in environment variables")
@@ -62,7 +62,7 @@ func FetchRestaurantsByCuisine(cuisine string, city string) ([]models.Restaurant
 	baseURL := "https://places.googleapis.com/v1/places:searchText"
 
 	var reqBody textSearchRequest
-	reqBody.TextQuery = fmt.Sprintf("%s restaurant in %s GA", cuisine, city)
+	reqBody.TextQuery = fmt.Sprintf("%s restaurant in %s %s", cuisine, city, state)
 	reqBody.MaxResultCount = 20
 	reqBody.LocationBias.Circle.Center.Latitude = lat
 	reqBody.LocationBias.Circle.Center.Longitude = lng
@@ -107,14 +107,15 @@ func FetchRestaurantsByCuisine(cuisine string, city string) ([]models.Restaurant
 	var restaurants []models.Restaurant
 	for _, result := range apiResp.Places {
 		restaurants = append(restaurants, models.Restaurant{
-			ID:           result.ID,
-			Name:         result.DisplayName.Text,
-			Cuisine:      cuisine,
-			Rating:       result.Rating,
-			TotalRatings: result.TotalRatings,
-			Latitude:     result.Location.Lat,
-			Longitude:    result.Location.Lng,
-			IsOpen:       result.CurrentOpeningHours.OpenNow,
+			GooglePlaceID: result.ID,
+			Name:          result.DisplayName.Text,
+			Rating:        result.Rating,
+			TotalRatings:  result.TotalRatings,
+			Latitude:      result.Location.Lat,
+			Longitude:     result.Location.Lng,
+			IsOpen:        result.CurrentOpeningHours.OpenNow,
+			City:          city,
+			State:         state,
 		})
 	}
 

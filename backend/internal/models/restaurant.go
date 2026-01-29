@@ -1,13 +1,15 @@
 package models
 
 type Restaurant struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Cuisine      string  `json:"cuisine"`
-	Rating       float64 `json:"rating"`
-	TotalRatings int     `json:"totalRatings"`
-	PriceLevel   int     `json:"price_level"`
-	Latitude     float64 `json:"latitude"`
-	Longitude    float64 `json:"longitude"`
-	IsOpen       bool    `json:"is_open"`
+	ID            int     `json:"id"`
+	GooglePlaceID string  `json:"google_place_id"`
+	Name          string  `json:"name"`
+	Rating        float64 `json:"rating"`
+	TotalRatings  int     `json:"total_ratings"`
+	PriceLevel    int     `json:"price_level"`
+	Latitude      float64 `json:"latitude"`
+	Longitude     float64 `json:"longitude"`
+	IsOpen        bool    `json:"is_open"`
+	City          string  `json:"city"`
+	State         string  `json:"state"`
 }
