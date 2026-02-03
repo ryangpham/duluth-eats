@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
+	"github.com/ryangpham/duluth-eats/internal/cache"
 	"github.com/ryangpham/duluth-eats/internal/db"
 	"github.com/ryangpham/duluth-eats/internal/handlers"
 )
@@ -19,6 +20,8 @@ func main() {
 	if err := db.InitDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+
+	cache.InitRedis()
 
 	fmt.Println("Starting DuluthEats API...")
 
