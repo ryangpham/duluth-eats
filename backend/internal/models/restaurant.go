@@ -12,4 +12,5 @@ type Restaurant struct {
 	IsOpen        bool    `json:"is_open"`
 	City          string  `json:"city"`
 	State         string  `json:"state"`
+	Score         float64 `json:"score,omitempty"`
 }
