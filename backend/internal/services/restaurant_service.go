@@ -110,3 +110,18 @@ func GetRestaurants(
 
 	return googleResults, nil
 }
+
+func PickRestaurant(
+	ctx context.Context,
+	cuisine, city, state string,
+	userLat, userLng float64,
+) (models.Restaurant, error) {
+	restaurants, err := GetRestaurants(ctx, cuisine, city, state, userLat, userLng)
+	if err != nil {
+		return models.Restaurant{}, err
+	}
+	if len(restaurants) == 0 {
+		return models.Restaurant{}, fmt.Errorf("no restaurants found for cuisine %s in %s, %s", cuisine, city, state)
+	}
+	return restaurants[0], nil
+}
