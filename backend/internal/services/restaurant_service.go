@@ -27,7 +27,7 @@ func calculateDistance(lat1, lng1, lat2, lng2 float64) float64 {
 func calculateScore(r models.Restaurant, userLat, userLng float64) float64 {
 	// simple scoring: rating * log(reviews + 1) / (1 + distance in km)
 	distance := calculateDistance(r.Latitude, r.Longitude, userLat, userLng) / 1000 // convert to km
-	score := r.Rating*0.6 + math.Log(float64(r.TotalRatings)+1)*0.25 - distance*0.15
+	score := r.Rating*0.6 + math.Log(float64(r.TotalRatings)+1)*0.25 - distance*0.05
 	return score
 }
 
