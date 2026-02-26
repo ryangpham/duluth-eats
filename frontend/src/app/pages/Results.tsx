@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
 import { Star, MapPin, ExternalLink, ArrowLeft } from "lucide-react";
 
 interface Restaurant {
@@ -11,64 +12,25 @@ interface Restaurant {
   rank?: number;
 }
 
-const mockRestaurants: Restaurant[] = [
-  {
-    id: 1,
-    name: "Seoul Garden Restaurant",
-    rating: 4.6,
-    distance: "0.8 miles",
-    isOpen: true,
-    mapsUrl: "https://maps.google.com",
-    rank: 1,
-  },
-  {
-    id: 2,
-    name: "Golden Wok Chinese Cuisine",
-    rating: 4.4,
-    distance: "1.2 miles",
-    isOpen: true,
-    mapsUrl: "https://maps.google.com",
-    rank: 2,
-  },
-  {
-    id: 3,
-    name: "Sushi Avenue",
-    rating: 4.7,
-    distance: "1.5 miles",
-    isOpen: false,
-    mapsUrl: "https://maps.google.com",
-    rank: 3,
-  },
-  {
-    id: 4,
-    name: "Pho Dai Loi",
-    rating: 4.5,
-    distance: "2.1 miles",
-    isOpen: true,
-    mapsUrl: "https://maps.google.com",
-  },
-  {
-    id: 5,
-    name: "Thai Basil Kitchen",
-    rating: 4.3,
-    distance: "2.3 miles",
-    isOpen: true,
-    mapsUrl: "https://maps.google.com",
-  },
-  {
-    id: 6,
-    name: "Kang Nam Korean BBQ",
-    rating: 4.8,
-    distance: "1.8 miles",
-    isOpen: false,
-    mapsUrl: "https://maps.google.com",
-  },
-];
-
 export function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const cuisine = location.state?.cuisine || "All";
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const pickedRestaurant = location.state?.restaurant;
+  const displayRestaurants = pickedRestaurant ? [pickedRestaurant, ...restaurants.filter(r => r.id !== pickedRestaurant.id)] : restaurants;
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/restaurants?cuisine=${encodeURIComponent(cuisine)}&city=Duluth&state=GA`)
+      .then((res) => res.json())
+      .then((data) => {
+        setRestaurants(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [cuisine]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -94,75 +56,79 @@ export function Results() {
                 {cuisine === "All" ? "Top Picks" : `${cuisine} Restaurants`}
               </h1>
               <p className="text-gray-600">
-                {mockRestaurants.length} results in Duluth, GA
+                {restaurants.length} results in Duluth, GA
               </p>
             </div>
           </div>
 
           {/* Restaurant Cards */}
           <div className="space-y-4">
-            {mockRestaurants.map((restaurant) => (
-              <div
-                key={restaurant.id}
-                className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative"
-              >
-                {/* Ranking Badge */}
-                {restaurant.rank && (
-                  <div className="absolute -top-2 -left-2 bg-[#8B0000] text-white px-3 py-1 rounded-full text-sm">
-                    #{restaurant.rank} Pick
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              displayRestaurants.map((restaurant) => (
+                <div
+                  key={restaurant.id}
+                  className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative"
+                >
+                  {/* Ranking Badge */}
+                  {restaurant.rank && (
+                    <div className="absolute -top-2 -left-2 bg-[#8B0000] text-white px-3 py-1 rounded-full text-sm">
+                      #{restaurant.rank} Pick
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {/* Restaurant Name */}
+                    <h3 className="text-xl font-semibold text-gray-900 pr-8">
+                      {restaurant.name}
+                    </h3>
+
+                    {/* Info Row */}
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      {/* Rating */}
+                      <div className="flex items-center gap-1 text-amber-600">
+                        <Star className="w-4 h-4 fill-amber-500" />
+                        <span className="font-medium">{restaurant.rating}</span>
+                      </div>
+
+                      {/* Distance */}
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <MapPin className="w-4 h-4" />
+                        <span>{restaurant.distance}</span>
+                      </div>
+
+                      {/* Open/Closed Status */}
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            restaurant.isOpen ? "bg-green-500" : "bg-red-500"
+                          }`}
+                        ></div>
+                        <span
+                          className={`font-medium ${
+                            restaurant.isOpen ? "text-green-700" : "text-red-700"
+                          }`}
+                        >
+                          {restaurant.isOpen ? "Open Now" : "Closed"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Maps Link */}
+                    <a
+                      href={restaurant.mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors"
+                    >
+                      <span className="text-sm font-medium">View on Google Maps</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </div>
-                )}
-
-                <div className="space-y-3">
-                  {/* Restaurant Name */}
-                  <h3 className="text-xl font-semibold text-gray-900 pr-8">
-                    {restaurant.name}
-                  </h3>
-
-                  {/* Info Row */}
-                  <div className="flex flex-wrap items-center gap-4 text-sm">
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 text-amber-600">
-                      <Star className="w-4 h-4 fill-amber-500" />
-                      <span className="font-medium">{restaurant.rating}</span>
-                    </div>
-
-                    {/* Distance */}
-                    <div className="flex items-center gap-1 text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>{restaurant.distance}</span>
-                    </div>
-
-                    {/* Open/Closed Status */}
-                    <div className="flex items-center gap-1.5">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          restaurant.isOpen ? "bg-green-500" : "bg-red-500"
-                        }`}
-                      ></div>
-                      <span
-                        className={`font-medium ${
-                          restaurant.isOpen ? "text-green-700" : "text-red-700"
-                        }`}
-                      >
-                        {restaurant.isOpen ? "Open Now" : "Closed"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Maps Link */}
-                  <a
-                    href={restaurant.mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors"
-                  >
-                    <span className="text-sm font-medium">View on Google Maps</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

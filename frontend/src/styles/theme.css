@@ -121,9 +121,7 @@
 
 @layer base {
   * {
-    box-sizing: border-box;
-    border-color: var(--color-border);
-    outline: none;
+    @apply border-border outline-ring/50;
   }
 
   body {

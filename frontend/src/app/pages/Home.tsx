@@ -5,12 +5,17 @@ import { ChevronDown } from "lucide-react";
 export function Home() {
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const cuisines = ["All", "Korean", "Chinese", "Japanese", "Vietnamese", "Thai"];
 
-  const handlePickForMe = () => {
-    navigate("/results", { state: { cuisine: selectedCuisine } });
+  const handlePickForMe = async () => {
+    setLoading(true);
+    const res = await fetch(`/pick?cuisine=${encodeURIComponent(selectedCuisine)}&city=Duluth&state=GA`);
+    const data = await res.json();
+    setLoading(false);
+    navigate("/results", { state: { cuisine: selectedCuisine, restaurant: data } });
   };
 
   return (
@@ -69,8 +74,9 @@ export function Home() {
             <button
               onClick={handlePickForMe}
               className="w-full px-8 py-5 bg-[#8B0000] text-white rounded-2xl shadow-lg hover:bg-[#A52A2A] hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              disabled={loading}
             >
-              Pick For Me
+              {loading ? "Loading..." : "Pick For Me"}
             </button>
 
             {/* Tagline */}
