@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/ryangpham/duluth-eats/internal/cache"
 	"github.com/ryangpham/duluth-eats/internal/models"
@@ -39,7 +40,10 @@ func GetRestaurants(
 	userLat float64,
 	userLng float64,
 ) ([]models.Restaurant, error) {
-	key := fmt.Sprintf("restaurants:%s:%s:%s", cuisine, city, state)
+	normalizedCuisine := strings.ToLower(strings.TrimSpace(cuisine))
+	normalizedCity := strings.TrimSpace(city)
+	normalizedState := strings.TrimSpace(state)
+	key := fmt.Sprintf("restaurants:%s:%s:%s", normalizedCuisine, strings.ToLower(normalizedCity), strings.ToLower(normalizedState))
 
 	// try redis first
 	cached, err := cache.RedisClient.Get(ctx, key).Result()
@@ -63,7 +67,7 @@ func GetRestaurants(
 	log.Println("REDIS MISS:", key)
 
 	// try db
-	restaurants, stale, err := repositories.GetRestaurantsByLocation(ctx, city, state)
+	restaurants, stale, err := repositories.GetRestaurantsByLocation(ctx, normalizedCuisine, normalizedCity, normalizedState)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +89,7 @@ func GetRestaurants(
 	}
 
 	// fallback to google
-	googleResults, err := fetchFromGooglePlaces(cuisine, city, state)
+	googleResults, err := fetchFromGooglePlaces(normalizedCuisine, normalizedCity, normalizedState)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +104,7 @@ func GetRestaurants(
 
 	// upsert to db
 	for _, r := range googleResults {
-		_ = repositories.UpsertRestaurant(ctx, r)
+		_ = repositories.UpsertRestaurant(ctx, r, normalizedCuisine)
 	}
 
 	// cache it

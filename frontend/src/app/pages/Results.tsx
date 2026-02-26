@@ -2,8 +2,19 @@ import { useLocation, useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { Star, MapPin, ExternalLink, ArrowLeft } from "lucide-react";
 
+interface ApiRestaurant {
+  id: number;
+  google_place_id: string;
+  name: string;
+  rating: number;
+  latitude: number;
+  longitude: number;
+  is_open: boolean;
+}
+
 interface Restaurant {
   id: number;
+  googlePlaceId: string;
   name: string;
   rating: number;
   distance: string;
@@ -12,21 +23,68 @@ interface Restaurant {
   rank?: number;
 }
 
+// change later to my current location or allow user to input location
+const DEFAULT_LAT = 33.94771;
+const DEFAULT_LNG = -84.12489;
+
+function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRestaurantViewModel(restaurant: ApiRestaurant): Restaurant {
+  const distanceMiles = getDistanceMiles(
+    DEFAULT_LAT,
+    DEFAULT_LNG,
+    restaurant.latitude,
+    restaurant.longitude,
+  );
+
+  return {
+    id: restaurant.id,
+    googlePlaceId: restaurant.google_place_id,
+    name: restaurant.name,
+    rating: restaurant.rating,
+    distance: `${distanceMiles.toFixed(1)} mi away`,
+    isOpen: restaurant.is_open,
+    mapsUrl: `https://www.google.com/maps/place/?q=place_id:${restaurant.google_place_id}`,
+  };
+}
+
 export function Results() {
   const location = useLocation();
   const navigate = useNavigate();
   const cuisine = location.state?.cuisine || "All";
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const pickedRestaurant = location.state?.restaurant;
-  const displayRestaurants = pickedRestaurant ? [pickedRestaurant, ...restaurants.filter(r => r.id !== pickedRestaurant.id)] : restaurants;
+  const pickedRestaurant = location.state?.restaurant as ApiRestaurant | undefined;
+  const mappedPickedRestaurant = pickedRestaurant
+    ? toRestaurantViewModel(pickedRestaurant)
+    : undefined;
+  const displayRestaurants = mappedPickedRestaurant
+    ? [
+        mappedPickedRestaurant,
+        ...restaurants.filter(
+          (r) => r.googlePlaceId !== mappedPickedRestaurant.googlePlaceId,
+        ),
+      ]
+    : restaurants;
 
   useEffect(() => {
     setLoading(true);
     fetch(`/restaurants?cuisine=${encodeURIComponent(cuisine)}&city=Duluth&state=GA`)
       .then((res) => res.json())
-      .then((data) => {
-        setRestaurants(data);
+      .then((data: ApiRestaurant[]) => {
+        setRestaurants(data.map(toRestaurantViewModel));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -68,7 +126,7 @@ export function Results() {
             ) : (
               displayRestaurants.map((restaurant) => (
                 <div
-                  key={restaurant.id}
+                  key={restaurant.googlePlaceId || restaurant.id}
                   className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative"
                 >
                   {/* Ranking Badge */}
