@@ -20,7 +20,6 @@ interface Restaurant {
   distance: string;
   isOpen: boolean;
   mapsUrl: string;
-  rank?: number;
 }
 
 // change later to my current location or allow user to input location
@@ -124,15 +123,15 @@ export function Results() {
             {loading ? (
               <div>Loading...</div>
             ) : (
-              displayRestaurants.map((restaurant) => (
+              displayRestaurants.map((restaurant, index) => (
                 <div
                   key={restaurant.googlePlaceId || restaurant.id}
                   className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative"
                 >
                   {/* Ranking Badge */}
-                  {restaurant.rank && (
+                  {index < 3 && (
                     <div className="absolute -top-2 -left-2 bg-[#8B0000] text-white px-3 py-1 rounded-full text-sm">
-                      #{restaurant.rank} Pick
+                      #{index + 1} Pick
                     </div>
                   )}
 
