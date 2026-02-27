@@ -14,6 +14,20 @@ import (
 	"github.com/ryangpham/duluth-eats/internal/repositories"
 )
 
+func filterOpenRestaurants(restaurants []models.Restaurant, openNowOnly bool) []models.Restaurant {
+	if !openNowOnly {
+		return restaurants
+	}
+
+	filtered := make([]models.Restaurant, 0, len(restaurants))
+	for _, restaurant := range restaurants {
+		if restaurant.IsOpen {
+			filtered = append(filtered, restaurant)
+		}
+	}
+	return filtered
+}
+
 // helper function to calculate distance (Haversine formula in meters)
 func calculateDistance(lat1, lng1, lat2, lng2 float64) float64 {
 	const R = 6371e3 // Earth radius in meters
@@ -39,6 +53,7 @@ func GetRestaurants(
 	state string,
 	userLat float64,
 	userLng float64,
+	openNowOnly bool,
 ) ([]models.Restaurant, error) {
 	normalizedCuisine := strings.ToLower(strings.TrimSpace(cuisine))
 	normalizedCity := strings.TrimSpace(city)
@@ -61,7 +76,7 @@ func GetRestaurants(
 			sort.Slice(restaurants, func(i, j int) bool {
 				return restaurants[i].Score > restaurants[j].Score
 			})
-			return restaurants, nil
+			return filterOpenRestaurants(restaurants, openNowOnly), nil
 		}
 	}
 	log.Println("REDIS MISS:", key)
@@ -85,7 +100,7 @@ func GetRestaurants(
 		if data, err := json.Marshal(restaurants); err == nil {
 			cache.RedisClient.Set(ctx, key, string(data), cache.DefaultTTL)
 		}
-		return restaurants, nil
+		return filterOpenRestaurants(restaurants, openNowOnly), nil
 	}
 
 	// fallback to google
@@ -112,15 +127,16 @@ func GetRestaurants(
 		cache.RedisClient.Set(ctx, key, string(data), cache.DefaultTTL)
 	}
 
-	return googleResults, nil
+	return filterOpenRestaurants(googleResults, openNowOnly), nil
 }
 
 func PickRestaurant(
 	ctx context.Context,
 	cuisine, city, state string,
 	userLat, userLng float64,
+	openNowOnly bool,
 ) (models.Restaurant, error) {
-	restaurants, err := GetRestaurants(ctx, cuisine, city, state, userLat, userLng)
+	restaurants, err := GetRestaurants(ctx, cuisine, city, state, userLat, userLng, openNowOnly)
 	if err != nil {
 		return models.Restaurant{}, err
 	}

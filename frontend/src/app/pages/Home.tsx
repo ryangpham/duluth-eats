@@ -2,20 +2,92 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronDown } from "lucide-react";
 
+const DEFAULT_CITY = "Duluth";
+const DEFAULT_STATE = "GA";
+
+function parseLocationInput(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return { city: DEFAULT_CITY, state: DEFAULT_STATE };
+  }
+
+  const [cityPart, statePart] = trimmed.split(",").map((part) => part.trim());
+  return {
+    city: cityPart || DEFAULT_CITY,
+    state: statePart || DEFAULT_STATE,
+  };
+}
+
 export function Home() {
   const [selectedCuisine, setSelectedCuisine] = useState("All");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isPicking, setIsPicking] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [manualLocation, setManualLocation] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [openNowOnly, setOpenNowOnly] = useState(false);
   const navigate = useNavigate();
 
   const cuisines = ["All", "Korean", "Chinese", "Japanese", "Vietnamese", "Thai"];
 
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported in this browser.");
+      return;
+    }
+
+    setLocationError("");
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoordinates({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setIsLocating(false);
+      },
+      () => {
+        setLocationError("Couldn't get your location. Try typing a city and state.");
+        setIsLocating(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      },
+    );
+  };
+
   const handlePickForMe = async () => {
-    setLoading(true);
-    const res = await fetch(`/pick?cuisine=${encodeURIComponent(selectedCuisine)}&city=Duluth&state=GA`);
+    setIsPicking(true);
+    const { city, state } = parseLocationInput(manualLocation);
+    const params = new URLSearchParams({
+      cuisine: selectedCuisine,
+      city,
+      state,
+      openNowOnly: String(openNowOnly),
+    });
+
+    if (userCoordinates) {
+      params.set("lat", userCoordinates.lat.toString());
+      params.set("lng", userCoordinates.lng.toString());
+    }
+
+    const res = await fetch(`/pick?${params.toString()}`);
     const data = await res.json();
-    setLoading(false);
-    navigate("/results", { state: { cuisine: selectedCuisine, restaurant: data } });
+    setIsPicking(false);
+    navigate("/results", {
+      state: {
+        cuisine: selectedCuisine,
+        restaurant: data,
+        city,
+        state,
+        lat: userCoordinates?.lat,
+        lng: userCoordinates?.lng,
+        openNowOnly,
+        locationLabel: userCoordinates ? "your current location" : `${city}, ${state}`,
+      },
+    });
   };
 
   return (
@@ -41,6 +113,33 @@ export function Home() {
 
           {/* Cuisine Selector */}
           <div className="space-y-4">
+            <button
+              onClick={handleUseCurrentLocation}
+              className="self-start px-4 py-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow text-sm text-gray-800"
+              disabled={isLocating}
+            >
+              {isLocating ? "Getting Location..." : "Use My Current Location"}
+            </button>
+
+            <p className="text-sm text-gray-600 text-center">or</p>
+
+            <p className="mb-2 text-sm text-gray-700 text-left font-medium">
+              Manually enter your city and state
+            </p>
+            <input
+              type="text"
+              value={manualLocation}
+              onChange={(event) => {
+                setManualLocation(event.target.value);
+                setUserCoordinates(null);
+              }}
+              placeholder="City, State"
+              className="w-full px-6 py-4 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow text-lg text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#8B0000]/40"
+            />
+
+            {locationError && <p className="text-sm text-red-700">{locationError}</p>}
+
+            <p className="mb-2 text-sm text-gray-700 text-left font-medium">Choose a cuisine</p>
             <div className="relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -70,13 +169,23 @@ export function Home() {
               )}
             </div>
 
+            <label className="flex items-center gap-3 text-gray-700">
+              <input
+                type="checkbox"
+                checked={openNowOnly}
+                onChange={(event) => setOpenNowOnly(event.target.checked)}
+                className="h-4 w-4 accent-[#8B0000]"
+              />
+              <span className="text-sm">Show restaurants that are open now only</span>
+            </label>
+
             {/* Pick For Me Button */}
             <button
               onClick={handlePickForMe}
               className="w-full px-8 py-5 bg-[#8B0000] text-white rounded-2xl shadow-lg hover:bg-[#A52A2A] hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              disabled={loading}
+              disabled={isPicking}
             >
-              {loading ? "Loading..." : "Pick For Me"}
+              {isPicking ? "Loading..." : "Pick For Me"}
             </button>
 
             {/* Tagline */}

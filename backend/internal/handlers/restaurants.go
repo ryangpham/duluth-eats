@@ -29,6 +29,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	cuisine := r.URL.Query().Get("cuisine")
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
+	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
 
 	fmt.Printf("DEBUG: Received request with cuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, city, userLat, userLng)
 
@@ -37,7 +38,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurants, err := services.GetRestaurants(r.Context(), cuisine, city, state, userLat, userLng)
+	restaurants, err := services.GetRestaurants(r.Context(), cuisine, city, state, userLat, userLng, openNowOnly)
 	fmt.Printf("DEBUG: GetRestaurants returned %d restaurants, err=%v\n", len(restaurants), err)
 	if err != nil {
 		http.Error(w, "failed to fetch restaurants: "+err.Error(), http.StatusInternalServerError)
@@ -54,6 +55,7 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	userLat := 33.94771
 	userLng := -84.12489
+	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
 
 	userLatStr := r.URL.Query().Get("lat")
 	userLngStr := r.URL.Query().Get("lng")
@@ -74,7 +76,7 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurant, err := services.PickRestaurant(r.Context(), cuisine, city, state, userLat, userLng)
+	restaurant, err := services.PickRestaurant(r.Context(), cuisine, city, state, userLat, userLng, openNowOnly)
 	if err != nil {
 		http.Error(w, "failed to pick restaurant: "+err.Error(), http.StatusInternalServerError)
 		return

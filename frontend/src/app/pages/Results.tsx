@@ -22,9 +22,22 @@ interface Restaurant {
   mapsUrl: string;
 }
 
+interface SearchState {
+  cuisine?: string;
+  restaurant?: ApiRestaurant;
+  city?: string;
+  state?: string;
+  lat?: number;
+  lng?: number;
+  openNowOnly?: boolean;
+  locationLabel?: string;
+}
+
 // change later to my current location or allow user to input location
 const DEFAULT_LAT = 33.94771;
 const DEFAULT_LNG = -84.12489;
+const DEFAULT_CITY = "Duluth";
+const DEFAULT_STATE = "GA";
 
 function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
@@ -40,10 +53,10 @@ function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number
   return R * c;
 }
 
-function toRestaurantViewModel(restaurant: ApiRestaurant): Restaurant {
+function toRestaurantViewModel(restaurant: ApiRestaurant, userLat: number, userLng: number): Restaurant {
   const distanceMiles = getDistanceMiles(
-    DEFAULT_LAT,
-    DEFAULT_LNG,
+    userLat,
+    userLng,
     restaurant.latitude,
     restaurant.longitude,
   );
@@ -62,12 +75,19 @@ function toRestaurantViewModel(restaurant: ApiRestaurant): Restaurant {
 export function Results() {
   const location = useLocation();
   const navigate = useNavigate();
-  const cuisine = location.state?.cuisine || "All";
+  const searchState = (location.state as SearchState | null) ?? null;
+  const cuisine = searchState?.cuisine || "All";
+  const city = searchState?.city || DEFAULT_CITY;
+  const state = searchState?.state || DEFAULT_STATE;
+  const lat = searchState?.lat ?? DEFAULT_LAT;
+  const lng = searchState?.lng ?? DEFAULT_LNG;
+  const openNowOnly = searchState?.openNowOnly ?? false;
+  const locationLabel = searchState?.locationLabel || `${city}, ${state}`;
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const pickedRestaurant = location.state?.restaurant as ApiRestaurant | undefined;
+  const pickedRestaurant = searchState?.restaurant;
   const mappedPickedRestaurant = pickedRestaurant
-    ? toRestaurantViewModel(pickedRestaurant)
+    ? toRestaurantViewModel(pickedRestaurant, lat, lng)
     : undefined;
   const displayRestaurants = mappedPickedRestaurant
     ? [
@@ -80,14 +100,23 @@ export function Results() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/restaurants?cuisine=${encodeURIComponent(cuisine)}&city=Duluth&state=GA`)
+    const params = new URLSearchParams({
+      cuisine,
+      city,
+      state,
+      lat: String(lat),
+      lng: String(lng),
+      openNowOnly: String(openNowOnly),
+    });
+
+    fetch(`/restaurants?${params.toString()}`)
       .then((res) => res.json())
       .then((data: ApiRestaurant[]) => {
-        setRestaurants(data.map(toRestaurantViewModel));
+        setRestaurants(data.map((restaurant) => toRestaurantViewModel(restaurant, lat, lng)));
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [cuisine]);
+  }, [city, cuisine, lat, lng, openNowOnly, state]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -113,8 +142,9 @@ export function Results() {
                 {cuisine === "All" ? "Top Picks" : `${cuisine} Restaurants`}
               </h1>
               <p className="text-gray-600">
-                {restaurants.length} results in Duluth, GA
+                {restaurants.length} results near {locationLabel}
               </p>
+              {openNowOnly && <p className="text-sm text-gray-600">Showing only places open now</p>}
             </div>
           </div>
 
