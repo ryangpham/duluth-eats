@@ -4,6 +4,8 @@ import { ChevronDown } from "lucide-react";
 
 const DEFAULT_CITY = "Duluth";
 const DEFAULT_STATE = "GA";
+const SEARCH_CITY = "Duluth";
+const SEARCH_STATE = "GA";
 
 interface Coordinates {
   lat: number;
@@ -68,11 +70,11 @@ export function Home() {
     setLocationError("");
 
     try {
-      const { city, state } = parseLocationInput(manualLocation);
+      const { city: userCity, state: userState } = parseLocationInput(manualLocation);
       let resolvedCoordinates = userCoordinates;
 
       if (!resolvedCoordinates) {
-        const locationParams = new URLSearchParams({ city, state });
+        const locationParams = new URLSearchParams({ city: userCity, state: userState });
         const locationRes = await fetch(`/resolve-location?${locationParams.toString()}`);
         if (locationRes.ok) {
           const locationData = (await locationRes.json()) as Coordinates;
@@ -82,8 +84,8 @@ export function Home() {
 
       const params = new URLSearchParams({
         cuisine: selectedCuisine,
-        city,
-        state,
+        city: SEARCH_CITY,
+        state: SEARCH_STATE,
         openNowOnly: String(openNowOnly),
       });
 
@@ -99,16 +101,18 @@ export function Home() {
       }
 
       const data = await res.json();
+      const userLocationLabel = userCoordinates ? "your current location" : `${userCity}, ${userState}`;
+
       navigate("/results", {
         state: {
           cuisine: selectedCuisine,
           restaurant: data,
-          city,
-          state,
+          city: SEARCH_CITY,
+          state: SEARCH_STATE,
           lat: resolvedCoordinates?.lat,
           lng: resolvedCoordinates?.lng,
           openNowOnly,
-          locationLabel: resolvedCoordinates ? (userCoordinates ? "your current location" : `${city}, ${state}`) : `${city}, ${state}`,
+          locationLabel: userLocationLabel,
         },
       });
     } finally {
