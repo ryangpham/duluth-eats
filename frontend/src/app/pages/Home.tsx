@@ -4,6 +4,13 @@ import { ChevronDown } from "lucide-react";
 
 const DEFAULT_CITY = "Duluth";
 const DEFAULT_STATE = "GA";
+const SEARCH_CITY = "Duluth";
+const SEARCH_STATE = "GA";
+
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
 
 function parseLocationInput(input: string) {
   const trimmed = input.trim();
@@ -25,7 +32,7 @@ export function Home() {
   const [isLocating, setIsLocating] = useState(false);
   const [manualLocation, setManualLocation] = useState("");
   const [locationError, setLocationError] = useState("");
-  const [userCoordinates, setUserCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const navigate = useNavigate();
 
@@ -60,34 +67,57 @@ export function Home() {
 
   const handlePickForMe = async () => {
     setIsPicking(true);
-    const { city, state } = parseLocationInput(manualLocation);
-    const params = new URLSearchParams({
-      cuisine: selectedCuisine,
-      city,
-      state,
-      openNowOnly: String(openNowOnly),
-    });
+    setLocationError("");
 
-    if (userCoordinates) {
-      params.set("lat", userCoordinates.lat.toString());
-      params.set("lng", userCoordinates.lng.toString());
-    }
+    try {
+      const { city: userCity, state: userState } = parseLocationInput(manualLocation);
+      let resolvedCoordinates = userCoordinates;
 
-    const res = await fetch(`/pick?${params.toString()}`);
-    const data = await res.json();
-    setIsPicking(false);
-    navigate("/results", {
-      state: {
+      if (!resolvedCoordinates) {
+        const locationParams = new URLSearchParams({ city: userCity, state: userState });
+        const locationRes = await fetch(`/resolve-location?${locationParams.toString()}`);
+        if (locationRes.ok) {
+          const locationData = (await locationRes.json()) as Coordinates;
+          resolvedCoordinates = locationData;
+        }
+      }
+
+      const params = new URLSearchParams({
         cuisine: selectedCuisine,
-        restaurant: data,
-        city,
-        state,
-        lat: userCoordinates?.lat,
-        lng: userCoordinates?.lng,
-        openNowOnly,
-        locationLabel: userCoordinates ? "your current location" : `${city}, ${state}`,
-      },
-    });
+        city: SEARCH_CITY,
+        state: SEARCH_STATE,
+        openNowOnly: String(openNowOnly),
+      });
+
+      if (resolvedCoordinates) {
+        params.set("lat", resolvedCoordinates.lat.toString());
+        params.set("lng", resolvedCoordinates.lng.toString());
+      }
+
+      const res = await fetch(`/pick?${params.toString()}`);
+      if (!res.ok) {
+        setLocationError("Couldn't find a restaurant for that location. Try another city and state.");
+        return;
+      }
+
+      const data = await res.json();
+      const userLocationLabel = userCoordinates ? "your current location" : `${userCity}, ${userState}`;
+
+      navigate("/results", {
+        state: {
+          cuisine: selectedCuisine,
+          restaurant: data,
+          city: SEARCH_CITY,
+          state: SEARCH_STATE,
+          lat: resolvedCoordinates?.lat,
+          lng: resolvedCoordinates?.lng,
+          openNowOnly,
+          locationLabel: userLocationLabel,
+        },
+      });
+    } finally {
+      setIsPicking(false);
+    }
   };
 
   return (

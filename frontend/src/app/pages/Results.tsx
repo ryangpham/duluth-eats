@@ -33,11 +33,13 @@ interface SearchState {
   locationLabel?: string;
 }
 
-// change later to my current location or allow user to input location
-const DEFAULT_LAT = 33.94771;
-const DEFAULT_LNG = -84.12489;
 const DEFAULT_CITY = "Duluth";
 const DEFAULT_STATE = "GA";
+
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
 
 function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 3958.8;
@@ -53,20 +55,17 @@ function getDistanceMiles(lat1: number, lng1: number, lat2: number, lng2: number
   return R * c;
 }
 
-function toRestaurantViewModel(restaurant: ApiRestaurant, userLat: number, userLng: number): Restaurant {
-  const distanceMiles = getDistanceMiles(
-    userLat,
-    userLng,
-    restaurant.latitude,
-    restaurant.longitude,
-  );
+function toRestaurantViewModel(restaurant: ApiRestaurant, origin: Coordinates | null): Restaurant {
+  const distance = origin
+    ? `${getDistanceMiles(origin.lat, origin.lng, restaurant.latitude, restaurant.longitude).toFixed(1)} mi away`
+    : "Distance unavailable";
 
   return {
     id: restaurant.id,
     googlePlaceId: restaurant.google_place_id,
     name: restaurant.name,
     rating: restaurant.rating,
-    distance: `${distanceMiles.toFixed(1)} mi away`,
+    distance,
     isOpen: restaurant.is_open,
     mapsUrl: `https://www.google.com/maps/place/?q=place_id:${restaurant.google_place_id}`,
   };
@@ -79,15 +78,21 @@ export function Results() {
   const cuisine = searchState?.cuisine || "All";
   const city = searchState?.city || DEFAULT_CITY;
   const state = searchState?.state || DEFAULT_STATE;
-  const lat = searchState?.lat ?? DEFAULT_LAT;
-  const lng = searchState?.lng ?? DEFAULT_LNG;
+  const lat = searchState?.lat;
+  const lng = searchState?.lng;
   const openNowOnly = searchState?.openNowOnly ?? false;
   const locationLabel = searchState?.locationLabel || `${city}, ${state}`;
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [distanceOrigin, setDistanceOrigin] = useState<Coordinates | null>(() => {
+    if (lat !== undefined && lng !== undefined) {
+      return { lat, lng };
+    }
+    return null;
+  });
   const pickedRestaurant = searchState?.restaurant;
   const mappedPickedRestaurant = pickedRestaurant
-    ? toRestaurantViewModel(pickedRestaurant, lat, lng)
+    ? toRestaurantViewModel(pickedRestaurant, distanceOrigin)
     : undefined;
   const displayRestaurants = mappedPickedRestaurant
     ? [
@@ -99,24 +104,45 @@ export function Results() {
     : restaurants;
 
   useEffect(() => {
-    setLoading(true);
-    const params = new URLSearchParams({
-      cuisine,
-      city,
-      state,
-      lat: String(lat),
-      lng: String(lng),
-      openNowOnly: String(openNowOnly),
-    });
+    async function loadRestaurants() {
+      setLoading(true);
 
-    fetch(`/restaurants?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data: ApiRestaurant[]) => {
-        setRestaurants(data.map((restaurant) => toRestaurantViewModel(restaurant, lat, lng)));
+      let origin = distanceOrigin;
+      if (!origin && city && state) {
+        const locationParams = new URLSearchParams({ city, state });
+        const locationRes = await fetch(`/resolve-location?${locationParams.toString()}`);
+        if (locationRes.ok) {
+          const locationData = (await locationRes.json()) as Coordinates;
+          origin = locationData;
+          setDistanceOrigin(locationData);
+        }
+      }
+
+      const params = new URLSearchParams({
+        cuisine,
+        city,
+        state,
+        openNowOnly: String(openNowOnly),
+      });
+
+      if (origin) {
+        params.set("lat", String(origin.lat));
+        params.set("lng", String(origin.lng));
+      }
+
+      try {
+        const res = await fetch(`/restaurants?${params.toString()}`);
+        const data = (await res.json()) as ApiRestaurant[];
+        setRestaurants(data.map((restaurant) => toRestaurantViewModel(restaurant, origin)));
+      } catch {
+        setRestaurants([]);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [city, cuisine, lat, lng, openNowOnly, state]);
+      }
+    }
+
+    loadRestaurants();
+  }, [city, cuisine, distanceOrigin, openNowOnly, state]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
