@@ -52,6 +52,20 @@ type placesAPIResponse struct {
 	} `json:"places"`
 }
 
+type locationSearchRequest struct {
+	TextQuery      string `json:"textQuery"`
+	MaxResultCount int    `json:"maxResultCount"`
+}
+
+type locationSearchResponse struct {
+	Places []struct {
+		Location struct {
+			Lat float64 `json:"latitude"`
+			Lng float64 `json:"longitude"`
+		} `json:"location"`
+	} `json:"places"`
+}
+
 // fetch nearby restaurants by cuisine keyword
 func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.Restaurant, error) {
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
@@ -120,4 +134,53 @@ func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.
 	}
 
 	return restaurants, nil
+}
+
+func ResolveCoordinates(city string, state string) (float64, float64, error) {
+	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
+	if apiKey == "" {
+		return 0, 0, fmt.Errorf("Google Places API key not set in environment variables")
+	}
+
+	baseURL := "https://places.googleapis.com/v1/places:searchText"
+
+	reqBody := locationSearchRequest{
+		TextQuery:      fmt.Sprintf("%s, %s", city, state),
+		MaxResultCount: 1,
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	req, err := http.NewRequest("POST", baseURL, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return 0, 0, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Goog-Api-Key", apiKey)
+	req.Header.Set("X-Goog-FieldMask", "places.location.latitude,places.location.longitude")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return 0, 0, fmt.Errorf("failed to resolve location")
+	}
+
+	var apiResp locationSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return 0, 0, err
+	}
+
+	if len(apiResp.Places) == 0 {
+		return 0, 0, fmt.Errorf("no matching location found")
+	}
+
+	return apiResp.Places[0].Location.Lat, apiResp.Places[0].Location.Lng, nil
 }

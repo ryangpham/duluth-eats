@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/restaurants': 'http://localhost:8080',
       '/pick': 'http://localhost:8080',
+      '/resolve-location': 'http://localhost:8080',
     }
   }
 })
