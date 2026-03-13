@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ryangpham/duluth-eats/internal/models"
 )
@@ -136,7 +137,7 @@ func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.
 	return restaurants, nil
 }
 
-func ResolveCoordinates(city string, state string) (float64, float64, error) {
+func ResolveCoordinates(address string, city string, state string) (float64, float64, error) {
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	if apiKey == "" {
 		return 0, 0, fmt.Errorf("Google Places API key not set in environment variables")
@@ -144,8 +145,13 @@ func ResolveCoordinates(city string, state string) (float64, float64, error) {
 
 	baseURL := "https://places.googleapis.com/v1/places:searchText"
 
+	query := strings.TrimSpace(address)
+	if query == "" {
+		query = fmt.Sprintf("%s, %s", city, state)
+	}
+
 	reqBody := locationSearchRequest{
-		TextQuery:      fmt.Sprintf("%s, %s", city, state),
+		TextQuery:      query,
 		MaxResultCount: 1,
 	}
 

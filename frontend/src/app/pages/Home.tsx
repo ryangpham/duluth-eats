@@ -30,7 +30,7 @@ export function Home() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const [manualLocation, setManualLocation] = useState("");
+  const [manualAddress, setManualAddress] = useState("");
   const [locationError, setLocationError] = useState("");
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
   const [openNowOnly, setOpenNowOnly] = useState(false);
@@ -70,11 +70,16 @@ export function Home() {
     setLocationError("");
 
     try {
-      const { city: userCity, state: userState } = parseLocationInput(manualLocation);
+      const typedAddress = manualAddress.trim();
+      const { city: userCity, state: userState } = parseLocationInput(typedAddress);
       let resolvedCoordinates = userCoordinates;
 
       if (!resolvedCoordinates) {
-        const locationParams = new URLSearchParams({ city: userCity, state: userState });
+        const locationParams = new URLSearchParams(
+          typedAddress
+            ? { address: typedAddress }
+            : { city: userCity, state: userState },
+        );
         const locationRes = await fetch(`/resolve-location?${locationParams.toString()}`);
         if (locationRes.ok) {
           const locationData = (await locationRes.json()) as Coordinates;
@@ -96,12 +101,12 @@ export function Home() {
 
       const res = await fetch(`/pick?${params.toString()}`);
       if (!res.ok) {
-        setLocationError("Couldn't find a restaurant for that location. Try another city and state.");
+        setLocationError("Couldn't find a restaurant for that location. Try another address.");
         return;
       }
 
       const data = await res.json();
-      const userLocationLabel = userCoordinates ? "your current location" : `${userCity}, ${userState}`;
+      const userLocationLabel = userCoordinates ? "your current location" : typedAddress || `${userCity}, ${userState}`;
 
       navigate("/results", {
         state: {
@@ -154,16 +159,16 @@ export function Home() {
             <p className="text-sm text-gray-600 text-center">or</p>
 
             <p className="mb-2 text-sm text-gray-700 text-left font-medium">
-              Manually enter your city and state
+              Manually enter your current address
             </p>
             <input
               type="text"
-              value={manualLocation}
+              value={manualAddress}
               onChange={(event) => {
-                setManualLocation(event.target.value);
+                setManualAddress(event.target.value);
                 setUserCoordinates(null);
               }}
-              placeholder="City, State"
+              placeholder="123 Main St, Duluth, GA 30096"
               className="w-full px-6 py-4 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow text-lg text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#8B0000]/40"
             />
 
