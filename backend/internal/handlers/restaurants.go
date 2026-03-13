@@ -18,7 +18,7 @@ func resolveUserCoordinates(userLatStr string, userLngStr string, city string, s
 		}
 	}
 
-	lat, lng, err := services.ResolveCoordinates(city, state)
+	lat, lng, err := services.ResolveCoordinates("", city, state)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -90,15 +90,16 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func ResolveLocation(w http.ResponseWriter, r *http.Request) {
+	address := r.URL.Query().Get("address")
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
 
-	if city == "" || state == "" {
-		http.Error(w, "city and state are required", http.StatusBadRequest)
+	if address == "" && (city == "" || state == "") {
+		http.Error(w, "address or city and state are required", http.StatusBadRequest)
 		return
 	}
 
-	lat, lng, err := services.ResolveCoordinates(city, state)
+	lat, lng, err := services.ResolveCoordinates(address, city, state)
 	if err != nil {
 		http.Error(w, "failed to resolve location: "+err.Error(), http.StatusInternalServerError)
 		return
