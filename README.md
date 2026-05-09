@@ -59,7 +59,7 @@ This starts all four services:
 | Postgres | 5433      |
 | Redis    | 6379      |
 
-The database schema is applied automatically on first startup via the migration file.
+The database schema is applied automatically on startup via migration files in `backend/migrations/`.
 
 ### Run Locally (development)
 
@@ -78,7 +78,7 @@ npm ci --legacy-peer-deps
 npm run dev
 ```
 
-The Vite dev server proxies `/restaurants` and `/pick` requests to the backend at `localhost:8080`.
+The Vite dev server proxies `/restaurants`, `/pick`, `/photo`, and `/resolve-location` requests to the backend at `localhost:8080`.
 
 ## API Endpoints
 
@@ -98,6 +98,22 @@ Returns a scored list of restaurants.
 ### `GET /pick`
 
 Returns the single highest-scored restaurant. Same parameters as `/restaurants`.
+
+### `GET /photo`
+
+Proxies restaurant photos from the Google Places API, keeping the API key server-side.
+
+| Param | Required | Description              |
+| ----- | -------- | ------------------------ |
+| ref   | yes      | Places API photo name    |
+
+### `GET /resolve-location`
+
+Resolves a text address to latitude/longitude coordinates via the Places API.
+
+| Param   | Required | Description           |
+| ------- | -------- | --------------------- |
+| address | yes      | Address string to resolve |
 
 ### `GET /health`
 
