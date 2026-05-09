@@ -154,7 +154,7 @@ export function Results() {
       
       {/* Content */}
       <div className="relative z-10 min-h-screen pt-20 pb-8 px-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {/* Header */}
           <div className="mb-6 flex items-center gap-4">
             <button
@@ -175,14 +175,14 @@ export function Results() {
           </div>
 
           {/* Restaurant Cards */}
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               <div>Loading...</div>
             ) : (
               displayRestaurants.map((restaurant, index) => (
                 <div
                   key={restaurant.googlePlaceId || restaurant.id}
-                  className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative"
+                  className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative flex flex-col min-h-[200px]"
                 >
                   {/* Ranking Badge */}
                   {index < 3 && (
@@ -191,54 +191,39 @@ export function Results() {
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    {/* Restaurant Name */}
-                    <h3 className="text-xl font-semibold text-gray-900 pr-8">
-                      {restaurant.name}
-                    </h3>
+                  {/* Name */}
+                  <h3 className="text-lg font-semibold text-gray-900 pr-6 mb-3 mt-1">
+                    {restaurant.name}
+                  </h3>
 
-                    {/* Info Row */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                      {/* Rating */}
-                      <div className="flex items-center gap-1 text-amber-600">
-                        <Star className="w-4 h-4 fill-amber-500" />
-                        <span className="font-medium">{restaurant.rating}</span>
-                      </div>
-
-                      {/* Distance */}
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <MapPin className="w-4 h-4" />
-                        <span>{restaurant.distance}</span>
-                      </div>
-
-                      {/* Open/Closed Status */}
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            restaurant.isOpen ? "bg-green-500" : "bg-red-500"
-                          }`}
-                        ></div>
-                        <span
-                          className={`font-medium ${
-                            restaurant.isOpen ? "text-green-700" : "text-red-700"
-                          }`}
-                        >
-                          {restaurant.isOpen ? "Open Now" : "Closed"}
-                        </span>
-                      </div>
+                  {/* Stats */}
+                  <div className="flex flex-col gap-2 text-sm flex-1">
+                    <div className="flex items-center gap-1.5 text-amber-600">
+                      <Star className="w-4 h-4 fill-amber-500 shrink-0" />
+                      <span className="font-medium">{restaurant.rating}</span>
                     </div>
-
-                    {/* Maps Link */}
-                    <a
-                      href={restaurant.mapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors"
-                    >
-                      <span className="text-sm font-medium">View on Google Maps</span>
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-1.5 text-gray-600">
+                      <MapPin className="w-4 h-4 shrink-0" />
+                      <span>{restaurant.distance}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${restaurant.isOpen ? "bg-green-500" : "bg-red-500"}`} />
+                      <span className={`font-medium ${restaurant.isOpen ? "text-green-700" : "text-red-700"}`}>
+                        {restaurant.isOpen ? "Open Now" : "Closed"}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Maps link pinned to bottom */}
+                  <a
+                    href={restaurant.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors mt-4"
+                  >
+                    <span className="text-sm font-medium">View on Google Maps</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
                 </div>
               ))
             )}

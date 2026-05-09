@@ -7,3 +7,6 @@ frontend/dist/
 
 # Env
 .env
+
+# Session logs
+CC-Session-Logs/
