@@ -3,7 +3,9 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/ryangpham/duluth-eats/internal/services"
@@ -73,6 +75,37 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(restaurant)
+}
+
+func PhotoProxy(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
+	if apiKey == "" {
+		http.Error(w, "API key not configured", http.StatusInternalServerError)
+		return
+	}
+
+	photoURL := fmt.Sprintf("https://places.googleapis.com/v1/%s/media?maxWidthPx=800&key=%s", name, apiKey)
+	resp, err := http.Get(photoURL)
+	if err != nil {
+		http.Error(w, "failed to fetch photo", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "photo not available", resp.StatusCode)
+		return
+	}
+
+	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	io.Copy(w, resp.Body)
 }
 
 func ResolveLocation(w http.ResponseWriter, r *http.Request) {

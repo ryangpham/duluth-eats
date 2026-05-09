@@ -28,9 +28,12 @@ func UpsertRestaurant(ctx context.Context, r models.Restaurant, cuisine string) 
 		longitude,
 		is_open,
 		city,
-		state
+		state,
+		formatted_address,
+		photo_reference,
+		google_maps_uri
 	)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 	ON CONFLICT (google_place_id)
 	DO UPDATE SET
 		name = EXCLUDED.name,
@@ -42,6 +45,9 @@ func UpsertRestaurant(ctx context.Context, r models.Restaurant, cuisine string) 
 		is_open = EXCLUDED.is_open,
 		city = EXCLUDED.city,
 		state = EXCLUDED.state,
+		formatted_address = EXCLUDED.formatted_address,
+		photo_reference = EXCLUDED.photo_reference,
+		google_maps_uri = EXCLUDED.google_maps_uri,
 		last_fetched = NOW()
 	RETURNING id;
 	`
@@ -58,6 +64,9 @@ func UpsertRestaurant(ctx context.Context, r models.Restaurant, cuisine string) 
 		r.IsOpen,
 		r.City,
 		r.State,
+		r.FormattedAddress,
+		r.PhotoReference,
+		r.GoogleMapsUri,
 	).Scan(&restaurantID); err != nil {
 		return err
 	}
@@ -101,7 +110,9 @@ func GetRestaurantsByLocation(
 
 	query := `
 	SELECT r.id, r.google_place_id, r.name, r.rating, r.total_ratings, r.price_level,
-		   r.latitude, r.longitude, r.is_open, r.city, r.state, r.last_fetched
+		   r.latitude, r.longitude, r.is_open, r.city, r.state,
+		   COALESCE(r.formatted_address, ''), COALESCE(r.photo_reference, ''), COALESCE(r.google_maps_uri, ''),
+		   r.last_fetched
 	FROM restaurants r
 	JOIN restaurant_cuisines rc ON r.id = rc.restaurant_id
 	JOIN cuisines c ON rc.cuisine_id = c.id
@@ -133,6 +144,9 @@ func GetRestaurantsByLocation(
 			&r.IsOpen,
 			&r.City,
 			&r.State,
+			&r.FormattedAddress,
+			&r.PhotoReference,
+			&r.GoogleMapsUri,
 			&lastFetched,
 		)
 		if err != nil {

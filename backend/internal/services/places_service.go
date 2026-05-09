@@ -58,6 +58,11 @@ type placesAPIResponse struct {
 		CurrentOpeningHours struct {
 			OpenNow bool `json:"openNow"`
 		} `json:"currentOpeningHours"`
+		Photos []struct {
+			Name string `json:"name"`
+		} `json:"photos"`
+		FormattedAddress string `json:"formattedAddress"`
+		GoogleMapsUri    string `json:"googleMapsUri"`
 	} `json:"places"`
 }
 
@@ -109,9 +114,13 @@ func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.
 			"places.displayName.text,"+
 			"places.rating,"+
 			"places.userRatingCount,"+
+			"places.priceLevel,"+
 			"places.location.latitude,"+
 			"places.location.longitude,"+
-			"places.currentOpeningHours.openNow",
+			"places.currentOpeningHours.openNow,"+
+			"places.photos,"+
+			"places.formattedAddress,"+
+			"places.googleMapsUri",
 	)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -127,18 +136,34 @@ func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.
 
 	fmt.Println("DEBUG: Places returned:", len(apiResp.Places))
 
+	priceLevelMap := map[string]int{
+		"PRICE_LEVEL_FREE":           0,
+		"PRICE_LEVEL_INEXPENSIVE":    1,
+		"PRICE_LEVEL_MODERATE":       2,
+		"PRICE_LEVEL_EXPENSIVE":      3,
+		"PRICE_LEVEL_VERY_EXPENSIVE": 4,
+	}
+
 	var restaurants []models.Restaurant
 	for _, result := range apiResp.Places {
+		photoRef := ""
+		if len(result.Photos) > 0 {
+			photoRef = result.Photos[0].Name
+		}
 		restaurants = append(restaurants, models.Restaurant{
-			GooglePlaceID: result.ID,
-			Name:          result.DisplayName.Text,
-			Rating:        result.Rating,
-			TotalRatings:  result.TotalRatings,
-			Latitude:      result.Location.Lat,
-			Longitude:     result.Location.Lng,
-			IsOpen:        result.CurrentOpeningHours.OpenNow,
-			City:          city,
-			State:         state,
+			GooglePlaceID:    result.ID,
+			Name:             result.DisplayName.Text,
+			Rating:           result.Rating,
+			TotalRatings:     result.TotalRatings,
+			PriceLevel:       priceLevelMap[result.PriceLevel],
+			Latitude:         result.Location.Lat,
+			Longitude:        result.Location.Lng,
+			IsOpen:           result.CurrentOpeningHours.OpenNow,
+			City:             city,
+			State:            state,
+			FormattedAddress: result.FormattedAddress,
+			PhotoReference:   photoRef,
+			GoogleMapsUri:    result.GoogleMapsUri,
 		})
 	}
 

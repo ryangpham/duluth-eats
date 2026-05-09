@@ -10,6 +10,10 @@ interface ApiRestaurant {
   latitude: number;
   longitude: number;
   is_open: boolean;
+  price_level: number;
+  formatted_address: string;
+  photo_reference: string;
+  google_maps_uri: string;
 }
 
 interface Restaurant {
@@ -20,6 +24,10 @@ interface Restaurant {
   distance: string;
   isOpen: boolean;
   mapsUrl: string;
+  priceLevel: number;
+  formattedAddress: string;
+  photoReference: string;
+  googleMapsUri: string;
 }
 
 interface SearchState {
@@ -60,6 +68,8 @@ function toRestaurantViewModel(restaurant: ApiRestaurant, origin: Coordinates | 
     ? `${getDistanceMiles(origin.lat, origin.lng, restaurant.latitude, restaurant.longitude).toFixed(1)} mi away`
     : "Distance unavailable";
 
+  const mapsUrl = restaurant.google_maps_uri || `https://www.google.com/maps/place/?q=place_id:${restaurant.google_place_id}`;
+
   return {
     id: restaurant.id,
     googlePlaceId: restaurant.google_place_id,
@@ -67,7 +77,11 @@ function toRestaurantViewModel(restaurant: ApiRestaurant, origin: Coordinates | 
     rating: restaurant.rating,
     distance,
     isOpen: restaurant.is_open,
-    mapsUrl: `https://www.google.com/maps/place/?q=place_id:${restaurant.google_place_id}`,
+    mapsUrl,
+    priceLevel: restaurant.price_level ?? 0,
+    formattedAddress: restaurant.formatted_address ?? "",
+    photoReference: restaurant.photo_reference ?? "",
+    googleMapsUri: restaurant.google_maps_uri ?? "",
   };
 }
 
@@ -182,48 +196,77 @@ export function Results() {
               displayRestaurants.map((restaurant, index) => (
                 <div
                   key={restaurant.googlePlaceId || restaurant.id}
-                  className="bg-[#FFF8F0] rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative flex flex-col min-h-[200px]"
+                  className="bg-[#FFF8F0] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 relative flex flex-col"
                 >
                   {/* Ranking Badge */}
                   {index < 3 && (
-                    <div className="absolute -top-2 -left-2 bg-[#8B0000] text-white px-3 py-1 rounded-full text-sm">
+                    <div className="absolute top-2 left-2 z-10 bg-[#8B0000] text-white px-3 py-1 rounded-full text-sm">
                       #{index + 1} Pick
                     </div>
                   )}
 
-                  {/* Name */}
-                  <h3 className="text-lg font-semibold text-gray-900 pr-6 mb-3 mt-1">
-                    {restaurant.name}
-                  </h3>
+                  {/* Photo */}
+                  {restaurant.photoReference ? (
+                    <img
+                      src={`/photo?name=${restaurant.photoReference}`}
+                      alt={restaurant.name}
+                      className="w-full h-36 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-36 bg-gradient-to-br from-[#8B0000]/10 to-[#A52A2A]/20 flex items-center justify-center">
+                      <span className="text-3xl">🍽️</span>
+                    </div>
+                  )}
 
-                  {/* Stats */}
-                  <div className="flex flex-col gap-2 text-sm flex-1">
-                    <div className="flex items-center gap-1.5 text-amber-600">
-                      <Star className="w-4 h-4 fill-amber-500 shrink-0" />
-                      <span className="font-medium">{restaurant.rating}</span>
+                  {/* Card body */}
+                  <div className="p-5 flex flex-col flex-1">
+                    {/* Name + price level */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 leading-snug">
+                        {restaurant.name}
+                      </h3>
+                      {restaurant.priceLevel > 0 && (
+                        <span className="text-sm font-medium text-gray-500 shrink-0">
+                          {"$".repeat(restaurant.priceLevel)}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-600">
-                      <MapPin className="w-4 h-4 shrink-0" />
-                      <span>{restaurant.distance}</span>
+
+                    {/* Stats */}
+                    <div className="flex flex-col gap-2 text-sm flex-1">
+                      <div className="flex items-center gap-1.5 text-amber-600">
+                        <Star className="w-4 h-4 fill-amber-500 shrink-0" />
+                        <span className="font-medium">{restaurant.rating}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-gray-600">
+                        <MapPin className="w-4 h-4 shrink-0" />
+                        <span>{restaurant.distance}</span>
+                      </div>
+                      {restaurant.formattedAddress && (
+                        <div className="flex items-start gap-1.5 text-gray-600">
+                          <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{restaurant.formattedAddress}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${restaurant.isOpen ? "bg-green-500" : "bg-red-500"}`} />
+                        <span className={`font-medium ${restaurant.isOpen ? "text-green-700" : "text-red-700"}`}>
+                          {restaurant.isOpen ? "Open Now" : "Closed"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${restaurant.isOpen ? "bg-green-500" : "bg-red-500"}`} />
-                      <span className={`font-medium ${restaurant.isOpen ? "text-green-700" : "text-red-700"}`}>
-                        {restaurant.isOpen ? "Open Now" : "Closed"}
-                      </span>
-                    </div>
+
+                    {/* Reviews link pinned to bottom */}
+                    <a
+                      href={restaurant.mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors mt-4"
+                    >
+                      <span className="text-sm font-medium">Reviews &amp; Info on Google Maps</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </div>
-
-                  {/* Maps link pinned to bottom */}
-                  <a
-                    href={restaurant.mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[#8B0000] hover:text-[#A52A2A] transition-colors mt-4"
-                  >
-                    <span className="text-sm font-medium">View on Google Maps</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
                 </div>
               ))
             )}
