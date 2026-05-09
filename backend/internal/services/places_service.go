@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,9 +15,15 @@ import (
 
 // default location: Duluth, GA (specifically city farmers market)
 const (
-	lat          = 33.94771
-	lng          = -84.12489
+	DefaultLat   = 33.94771
+	DefaultLng   = -84.12489
 	searchRadius = 20000 // 20 km
+)
+
+// unexported aliases for internal use
+const (
+	lat = DefaultLat
+	lng = DefaultLng
 )
 
 // request struct
@@ -176,7 +184,9 @@ func ResolveCoordinates(address string, city string, state string) (float64, flo
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return 0, 0, fmt.Errorf("failed to resolve location")
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("ResolveCoordinates: Places API error status=%d body=%s", resp.StatusCode, string(body))
+		return 0, 0, fmt.Errorf("location API error (status %d)", resp.StatusCode)
 	}
 
 	var apiResp locationSearchResponse

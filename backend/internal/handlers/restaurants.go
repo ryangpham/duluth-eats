@@ -9,21 +9,15 @@ import (
 	"github.com/ryangpham/duluth-eats/internal/services"
 )
 
-func resolveUserCoordinates(userLatStr string, userLngStr string, city string, state string) (float64, float64, error) {
+func resolveUserCoordinates(userLatStr string, userLngStr string) (float64, float64) {
 	if userLatStr != "" && userLngStr != "" {
 		lat, latErr := strconv.ParseFloat(userLatStr, 64)
 		lng, lngErr := strconv.ParseFloat(userLngStr, 64)
 		if latErr == nil && lngErr == nil {
-			return lat, lng, nil
+			return lat, lng
 		}
 	}
-
-	lat, lng, err := services.ResolveCoordinates("", city, state)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return lat, lng, nil
+	return services.DefaultLat, services.DefaultLng
 }
 
 func GetRestaurants(w http.ResponseWriter, r *http.Request) {
@@ -39,11 +33,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 
 	userLatStr := r.URL.Query().Get("lat")
 	userLngStr := r.URL.Query().Get("lng")
-	userLat, userLng, err := resolveUserCoordinates(userLatStr, userLngStr, city, state)
-	if err != nil {
-		http.Error(w, "failed to resolve location: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	userLat, userLng := resolveUserCoordinates(userLatStr, userLngStr)
 
 	fmt.Printf("DEBUG: Received request with cuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, city, userLat, userLng)
 
@@ -71,11 +61,7 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 
 	userLatStr := r.URL.Query().Get("lat")
 	userLngStr := r.URL.Query().Get("lng")
-	userLat, userLng, err := resolveUserCoordinates(userLatStr, userLngStr, city, state)
-	if err != nil {
-		http.Error(w, "failed to resolve location: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
+	userLat, userLng := resolveUserCoordinates(userLatStr, userLngStr)
 
 	fmt.Printf("DEBUG: Pick request with cuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, city, userLat, userLng)
 

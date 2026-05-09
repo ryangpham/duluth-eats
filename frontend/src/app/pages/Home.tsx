@@ -74,16 +74,15 @@ export function Home() {
       const { city: userCity, state: userState } = parseLocationInput(typedAddress);
       let resolvedCoordinates = userCoordinates;
 
-      if (!resolvedCoordinates) {
-        const locationParams = new URLSearchParams(
-          typedAddress
-            ? { address: typedAddress }
-            : { city: userCity, state: userState },
-        );
+      if (!resolvedCoordinates && typedAddress) {
+        const locationParams = new URLSearchParams({ address: typedAddress });
         const locationRes = await fetch(`/resolve-location?${locationParams.toString()}`);
         if (locationRes.ok) {
           const locationData = (await locationRes.json()) as Coordinates;
           resolvedCoordinates = locationData;
+        } else {
+          setLocationError("Couldn't find that address. Try a different address or use your current location.");
+          return;
         }
       }
 
