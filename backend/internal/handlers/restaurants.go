@@ -24,6 +24,7 @@ func resolveUserCoordinates(userLatStr string, userLngStr string) (float64, floa
 
 func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	cuisine := r.URL.Query().Get("cuisine")
+	subCuisine := r.URL.Query().Get("subCuisine")
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
 	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
@@ -37,9 +38,9 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	userLngStr := r.URL.Query().Get("lng")
 	userLat, userLng := resolveUserCoordinates(userLatStr, userLngStr)
 
-	fmt.Printf("DEBUG: Received request with cuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, city, userLat, userLng)
+	fmt.Printf("DEBUG: Received request with cuisine=%q, subCuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, subCuisine, city, userLat, userLng)
 
-	restaurants, err := services.GetRestaurants(r.Context(), cuisine, city, state, userLat, userLng, openNowOnly)
+	restaurants, err := services.GetRestaurants(r.Context(), cuisine, subCuisine, city, state, userLat, userLng, openNowOnly)
 	fmt.Printf("DEBUG: GetRestaurants returned %d restaurants, err=%v\n", len(restaurants), err)
 	if err != nil {
 		http.Error(w, "failed to fetch restaurants: "+err.Error(), http.StatusInternalServerError)
@@ -52,6 +53,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 
 func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 	cuisine := r.URL.Query().Get("cuisine")
+	subCuisine := r.URL.Query().Get("subCuisine")
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
 	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
@@ -65,9 +67,9 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 	userLngStr := r.URL.Query().Get("lng")
 	userLat, userLng := resolveUserCoordinates(userLatStr, userLngStr)
 
-	fmt.Printf("DEBUG: Pick request with cuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, city, userLat, userLng)
+	fmt.Printf("DEBUG: Pick request with cuisine=%q, subCuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, subCuisine, city, userLat, userLng)
 
-	restaurant, err := services.PickRestaurant(r.Context(), cuisine, city, state, userLat, userLng, openNowOnly)
+	restaurant, err := services.PickRestaurant(r.Context(), cuisine, subCuisine, city, state, userLat, userLng, openNowOnly)
 	if err != nil {
 		http.Error(w, "failed to pick restaurant: "+err.Error(), http.StatusInternalServerError)
 		return

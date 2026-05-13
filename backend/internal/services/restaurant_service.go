@@ -46,9 +46,27 @@ func calculateScore(r models.Restaurant, userLat, userLng float64) float64 {
 	return score
 }
 
+func normalizeSubCuisine(subCuisine string) string {
+	trimmed := strings.TrimSpace(subCuisine)
+	if strings.EqualFold(trimmed, "Any") {
+		return ""
+	}
+	return strings.ToLower(trimmed)
+}
+
+func restaurantCacheKey(cuisine string, subCuisine string, city string, state string) string {
+	normalizedCuisine := strings.ToLower(strings.TrimSpace(cuisine))
+	normalizedSubCuisine := normalizeSubCuisine(subCuisine)
+	normalizedCity := strings.ToLower(strings.TrimSpace(city))
+	normalizedState := strings.ToLower(strings.TrimSpace(state))
+
+	return fmt.Sprintf("restaurants:%s:%s:%s:%s", normalizedCuisine, normalizedSubCuisine, normalizedCity, normalizedState)
+}
+
 func GetRestaurants(
 	ctx context.Context,
 	cuisine string,
+	subCuisine string,
 	city string,
 	state string,
 	userLat float64,
@@ -56,9 +74,10 @@ func GetRestaurants(
 	openNowOnly bool,
 ) ([]models.Restaurant, error) {
 	normalizedCuisine := strings.ToLower(strings.TrimSpace(cuisine))
+	normalizedSubCuisine := normalizeSubCuisine(subCuisine)
 	normalizedCity := strings.TrimSpace(city)
 	normalizedState := strings.TrimSpace(state)
-	key := fmt.Sprintf("restaurants:%s:%s:%s", normalizedCuisine, strings.ToLower(normalizedCity), strings.ToLower(normalizedState))
+	key := restaurantCacheKey(normalizedCuisine, normalizedSubCuisine, normalizedCity, normalizedState)
 
 	// try redis first
 	cached, err := cache.RedisClient.Get(ctx, key).Result()
@@ -81,30 +100,32 @@ func GetRestaurants(
 	}
 	log.Println("REDIS MISS:", key)
 
-	// try db
-	restaurants, stale, err := repositories.GetRestaurantsByLocation(ctx, normalizedCuisine, normalizedCity, normalizedState)
-	if err != nil {
-		return nil, err
-	}
-	// calculate scores
-	for i := range restaurants {
-		restaurants[i].Score = calculateScore(restaurants[i], userLat, userLng)
-	}
-	// sort by score descending
-	sort.Slice(restaurants, func(i, j int) bool {
-		return restaurants[i].Score > restaurants[j].Score
-	})
-
-	if len(restaurants) > 0 && !stale {
-		// cache it
-		if data, err := json.Marshal(restaurants); err == nil {
-			cache.RedisClient.Set(ctx, key, string(data), cache.DefaultTTL)
+	if normalizedSubCuisine == "" {
+		// try db
+		restaurants, stale, err := repositories.GetRestaurantsByLocation(ctx, normalizedCuisine, normalizedCity, normalizedState)
+		if err != nil {
+			return nil, err
 		}
-		return filterOpenRestaurants(restaurants, openNowOnly), nil
+		// calculate scores
+		for i := range restaurants {
+			restaurants[i].Score = calculateScore(restaurants[i], userLat, userLng)
+		}
+		// sort by score descending
+		sort.Slice(restaurants, func(i, j int) bool {
+			return restaurants[i].Score > restaurants[j].Score
+		})
+
+		if len(restaurants) > 0 && !stale {
+			// cache it
+			if data, err := json.Marshal(restaurants); err == nil {
+				cache.RedisClient.Set(ctx, key, string(data), cache.DefaultTTL)
+			}
+			return filterOpenRestaurants(restaurants, openNowOnly), nil
+		}
 	}
 
 	// fallback to google
-	googleResults, err := fetchFromGooglePlaces(normalizedCuisine, normalizedCity, normalizedState)
+	googleResults, err := fetchFromGooglePlaces(normalizedCuisine, normalizedSubCuisine, normalizedCity, normalizedState)
 	if err != nil {
 		return nil, err
 	}
@@ -117,9 +138,11 @@ func GetRestaurants(
 		return googleResults[i].Score > googleResults[j].Score
 	})
 
-	// upsert to db
-	for _, r := range googleResults {
-		_ = repositories.UpsertRestaurant(ctx, r, normalizedCuisine)
+	if normalizedSubCuisine == "" {
+		// upsert to db
+		for _, r := range googleResults {
+			_ = repositories.UpsertRestaurant(ctx, r, normalizedCuisine)
+		}
 	}
 
 	// cache it
@@ -132,11 +155,11 @@ func GetRestaurants(
 
 func PickRestaurant(
 	ctx context.Context,
-	cuisine, city, state string,
+	cuisine, subCuisine, city, state string,
 	userLat, userLng float64,
 	openNowOnly bool,
 ) (models.Restaurant, error) {
-	restaurants, err := GetRestaurants(ctx, cuisine, city, state, userLat, userLng, openNowOnly)
+	restaurants, err := GetRestaurants(ctx, cuisine, subCuisine, city, state, userLat, userLng, openNowOnly)
 	if err != nil {
 		return models.Restaurant{}, err
 	}

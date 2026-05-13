@@ -80,8 +80,17 @@ type locationSearchResponse struct {
 	} `json:"places"`
 }
 
+func buildRestaurantTextQuery(cuisine string, subCuisine string, city string, state string) string {
+	trimmedSubCuisine := strings.TrimSpace(subCuisine)
+	if trimmedSubCuisine != "" && !strings.EqualFold(trimmedSubCuisine, "Any") {
+		return fmt.Sprintf("%s %s restaurant in %s %s", cuisine, trimmedSubCuisine, city, state)
+	}
+
+	return fmt.Sprintf("%s restaurant in %s %s", cuisine, city, state)
+}
+
 // fetch nearby restaurants by cuisine keyword
-func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.Restaurant, error) {
+func fetchFromGooglePlaces(cuisine string, subCuisine string, city string, state string) ([]models.Restaurant, error) {
 	apiKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("Google Places API key not set in environment variables")
@@ -90,7 +99,7 @@ func fetchFromGooglePlaces(cuisine string, city string, state string) ([]models.
 	baseURL := "https://places.googleapis.com/v1/places:searchText"
 
 	var reqBody textSearchRequest
-	reqBody.TextQuery = fmt.Sprintf("%s restaurant in %s %s", cuisine, city, state)
+	reqBody.TextQuery = buildRestaurantTextQuery(cuisine, subCuisine, city, state)
 	reqBody.MaxResultCount = 20
 	reqBody.LocationBias.Circle.Center.Latitude = lat
 	reqBody.LocationBias.Circle.Center.Longitude = lng

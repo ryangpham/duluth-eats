@@ -7,6 +7,16 @@ const DEFAULT_STATE = "GA";
 const SEARCH_CITY = "Duluth";
 const SEARCH_STATE = "GA";
 
+const cuisines = ["All", "Korean", "Chinese", "Japanese", "Vietnamese", "Thai"];
+
+const subCuisines: Record<string, string[]> = {
+  Korean: ["Any", "KBBQ", "Traditional", "Ramyun", "Fried Chicken", "Stew & Soup"],
+  Chinese: ["Any", "Sichuan", "Cantonese", "Dim Sum", "Hot Pot", "Noodles"],
+  Japanese: ["Any", "Sushi", "Ramen", "Izakaya", "Tonkatsu", "Teppanyaki"],
+  Vietnamese: ["Any", "Pho", "Banh Mi", "Bun", "Com Tam"],
+  Thai: ["Any", "Curry", "Pad Thai", "Noodle Soup", "Street Food"],
+};
+
 interface Coordinates {
   lat: number;
   lng: number;
@@ -27,7 +37,9 @@ function parseLocationInput(input: string) {
 
 export function Home() {
   const [selectedCuisine, setSelectedCuisine] = useState("All");
+  const [selectedSubCuisine, setSelectedSubCuisine] = useState("Any");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSubCuisineDropdownOpen, setIsSubCuisineDropdownOpen] = useState(false);
   const [isPicking, setIsPicking] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [manualAddress, setManualAddress] = useState("");
@@ -36,7 +48,14 @@ export function Home() {
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const navigate = useNavigate();
 
-  const cuisines = ["All", "Korean", "Chinese", "Japanese", "Vietnamese", "Thai"];
+  const subCuisineOptions = subCuisines[selectedCuisine] ?? [];
+
+  const handleSelectCuisine = (cuisine: string) => {
+    setSelectedCuisine(cuisine);
+    setSelectedSubCuisine("Any");
+    setIsDropdownOpen(false);
+    setIsSubCuisineDropdownOpen(false);
+  };
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -93,6 +112,10 @@ export function Home() {
         openNowOnly: String(openNowOnly),
       });
 
+      if (selectedSubCuisine !== "Any") {
+        params.set("subCuisine", selectedSubCuisine);
+      }
+
       if (resolvedCoordinates) {
         params.set("lat", resolvedCoordinates.lat.toString());
         params.set("lng", resolvedCoordinates.lng.toString());
@@ -110,6 +133,7 @@ export function Home() {
       navigate("/results", {
         state: {
           cuisine: selectedCuisine,
+          subCuisine: selectedSubCuisine !== "Any" ? selectedSubCuisine : undefined,
           restaurant: data,
           city: SEARCH_CITY,
           state: SEARCH_STATE,
@@ -189,8 +213,7 @@ export function Home() {
                     <button
                       key={cuisine}
                       onClick={() => {
-                        setSelectedCuisine(cuisine);
-                        setIsDropdownOpen(false);
+                        handleSelectCuisine(cuisine);
                       }}
                       className={`w-full px-6 py-3 text-left hover:bg-red-50 transition-colors ${
                         selectedCuisine === cuisine ? 'bg-red-50 text-[#8B0000]' : 'text-gray-800'
@@ -202,6 +225,40 @@ export function Home() {
                 </div>
               )}
             </div>
+
+            {selectedCuisine !== "All" && (
+              <div>
+                <p className="mb-2 text-sm text-gray-700 text-left font-medium">Choose a style</p>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSubCuisineDropdownOpen(!isSubCuisineDropdownOpen)}
+                    className="w-full px-6 py-4 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow flex items-center justify-between text-lg"
+                  >
+                    <span className="text-gray-800">{selectedSubCuisine}</span>
+                    <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform ${isSubCuisineDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isSubCuisineDropdownOpen && (
+                    <div className="absolute top-full mt-2 w-full bg-white rounded-2xl shadow-xl overflow-hidden z-20">
+                      {subCuisineOptions.map((subCuisine) => (
+                        <button
+                          key={subCuisine}
+                          onClick={() => {
+                            setSelectedSubCuisine(subCuisine);
+                            setIsSubCuisineDropdownOpen(false);
+                          }}
+                          className={`w-full px-6 py-3 text-left hover:bg-red-50 transition-colors ${
+                            selectedSubCuisine === subCuisine ? 'bg-red-50 text-[#8B0000]' : 'text-gray-800'
+                          }`}
+                        >
+                          {subCuisine}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <label className="flex items-center gap-3 text-gray-700">
               <input

@@ -32,6 +32,7 @@ interface Restaurant {
 
 interface SearchState {
   cuisine?: string;
+  subCuisine?: string;
   restaurant?: ApiRestaurant;
   city?: string;
   state?: string;
@@ -90,6 +91,7 @@ export function Results() {
   const navigate = useNavigate();
   const searchState = (location.state as SearchState | null) ?? null;
   const cuisine = searchState?.cuisine || "All";
+  const subCuisine = searchState?.subCuisine;
   const city = searchState?.city || DEFAULT_CITY;
   const state = searchState?.state || DEFAULT_STATE;
   const lat = searchState?.lat;
@@ -139,6 +141,10 @@ export function Results() {
         openNowOnly: String(openNowOnly),
       });
 
+      if (subCuisine) {
+        params.set("subCuisine", subCuisine);
+      }
+
       if (origin) {
         params.set("lat", String(origin.lat));
         params.set("lng", String(origin.lng));
@@ -156,7 +162,7 @@ export function Results() {
     }
 
     loadRestaurants();
-  }, [city, cuisine, distanceOrigin, openNowOnly, state]);
+  }, [city, cuisine, distanceOrigin, openNowOnly, state, subCuisine]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
