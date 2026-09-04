@@ -78,7 +78,7 @@ npm ci --legacy-peer-deps
 npm run dev
 ```
 
-The Vite dev server proxies `/restaurants`, `/pick`, `/photo`, and `/resolve-location` requests to the backend at `localhost:8080`.
+The Vite dev server proxies `/restaurants`, `/pick`, `/photo`, `/menu`, and `/resolve-location` requests to the backend at `localhost:8080`.
 
 ## API Endpoints
 
@@ -114,6 +114,17 @@ Resolves a text address to latitude/longitude coordinates via the Places API.
 | Param   | Required | Description           |
 | ------- | -------- | --------------------- |
 | address | yes      | Address string to resolve |
+
+### `GET /menu?placeId=GOOGLE_PLACE_ID`
+
+Returns published menu items, price variants, source URLs, a website/menu link, and `checked_at`. The results page opens this data in a searchable menu dialog.
+
+- Uses the existing Google Places key to request `websiteUri` on demand. Google Places does **not** provide itemized menus; this additional Place Details request may incur usage charges.
+- Reads Schema.org `MenuItem` JSON-LD from the official website and at most two linked menu pages on the same host. No arbitrary HTML prices, AI estimates, JavaScript execution, PDF extraction, or image OCR are used.
+- Only explicit item prices are displayed. Missing prices and currencies are identified; the result may cover only part of the restaurant's menu. A website check timestamp is not a restaurant price-update timestamp, and chain-wide menus may differ at individual locations.
+- Falls back to published menu/website links when structured data is unavailable. Third-party ordering links are available externally but are not crawled.
+- Uses a one-hour Redis cache, bounded requests and response sizes, validated public DNS addresses, and redirect checks. The client can cancel requests when the dialog closes.
+- Requires no migration or additional API key. Restart the Go server after adding this route; for Docker, rebuild the backend and frontend to include the new route and nginx proxy.
 
 ### `GET /health`
 

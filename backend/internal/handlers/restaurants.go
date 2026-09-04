@@ -28,6 +28,15 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
 	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
+	maxPrice := 0
+	if value := r.URL.Query().Get("maxPrice"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 0 || parsed > 4 {
+			http.Error(w, "maxPrice must be between 0 and 4", http.StatusBadRequest)
+			return
+		}
+		maxPrice = parsed
+	}
 
 	if cuisine == "" || city == "" {
 		http.Error(w, "cuisine and city are required", http.StatusBadRequest)
@@ -48,7 +57,7 @@ func GetRestaurants(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(restaurants)
+	json.NewEncoder(w).Encode(services.FilterRestaurantsByBudget(restaurants, maxPrice))
 }
 
 func PickRestaurant(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +66,15 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 	city := r.URL.Query().Get("city")
 	state := r.URL.Query().Get("state")
 	openNowOnly, _ := strconv.ParseBool(r.URL.Query().Get("openNowOnly"))
+	maxPrice := 0
+	if value := r.URL.Query().Get("maxPrice"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed < 0 || parsed > 4 {
+			http.Error(w, "maxPrice must be between 0 and 4", http.StatusBadRequest)
+			return
+		}
+		maxPrice = parsed
+	}
 
 	if cuisine == "" || city == "" {
 		http.Error(w, "cuisine and city are required", http.StatusBadRequest)
@@ -69,14 +87,19 @@ func PickRestaurant(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("DEBUG: Pick request with cuisine=%q, subCuisine=%q, city=%q, lat=%f, lng=%f\n", cuisine, subCuisine, city, userLat, userLng)
 
-	restaurant, err := services.PickRestaurant(r.Context(), cuisine, subCuisine, city, state, userLat, userLng, openNowOnly)
+	restaurants, err := services.GetRestaurants(r.Context(), cuisine, subCuisine, city, state, userLat, userLng, openNowOnly)
 	if err != nil {
 		http.Error(w, "failed to pick restaurant: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	restaurants = services.FilterRestaurantsByBudget(restaurants, maxPrice)
+	if len(restaurants) == 0 {
+		http.Error(w, "no restaurants match your preferences", http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(restaurant)
+	json.NewEncoder(w).Encode(restaurants[0])
 }
 
 func PhotoProxy(w http.ResponseWriter, r *http.Request) {

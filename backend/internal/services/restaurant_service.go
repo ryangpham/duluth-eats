@@ -168,3 +168,14 @@ func PickRestaurant(
 	}
 	return restaurants[0], nil
 }
+
+// FilterRestaurantsByBudget preserves ranking and excludes unknown prices when a budget is set.
+func FilterRestaurantsByBudget(restaurants []models.Restaurant, maxPrice int) []models.Restaurant {
+	filtered := make([]models.Restaurant, 0, len(restaurants))
+	for _, restaurant := range restaurants {
+		if maxPrice == 0 || (restaurant.PriceLevel > 0 && restaurant.PriceLevel <= maxPrice) {
+			filtered = append(filtered, restaurant)
+		}
+	}
+	return filtered
+}
